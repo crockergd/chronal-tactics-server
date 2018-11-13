@@ -1,0 +1,16 @@
+{
+    "name": "game-off-2018-server",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "start": "tsc && node dist/index.js",
+        "build": "tsc"
+    },
+    "dependencies": {
+        "@types/socket.io": "^2.1.0",
+        "socket.io": "^2.1.1"
+    },
+    "devDependencies": {
+        "typescript": "^3.1.6"
+    }
+}
