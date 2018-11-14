@@ -30,6 +30,11 @@ export default class GameServer {
             const connection: GameSocket = new GameSocket(this.uid.next('socket'), socket);
             this.connections.push(connection);
             console.log('Connection ' + connection.key + ' added.');
+
+            connection.socket.on('init', (settings: any) => {
+                connection.initialized = true;
+                connection.settings = settings;
+            });
         });
 
         setInterval(this.tick.bind(this), 1000 / this.TICK_RATE);
@@ -47,7 +52,7 @@ export default class GameServer {
     }
 
     private cleanup(): void {
-        const dead_connections: Array<GameSocket> = this.connections.filter(connection => !connection.active);
+        const dead_connections: Array<GameSocket> = this.connections.filter(connection => !connection.alive);
         if (!dead_connections.length) return;
 
         for (const connection of dead_connections) {
@@ -56,11 +61,11 @@ export default class GameServer {
         }
 
         this.rooms = this.rooms.filter(room => room.active);
-        this.connections = this.connections.filter(connection => connection.active);
+        this.connections = this.connections.filter(connection => connection.alive);
     }
 
     private matchmake(): void {
-        const unmatched_connections: Array<GameSocket> = this.connections.filter(connection => !connection.matched);
+        const unmatched_connections: Array<GameSocket> = this.connections.filter(connection => !connection.matched && connection.initialized);
         if (unmatched_connections.length < 2) return;
 
         const p1: GameSocket = unmatched_connections[0];
