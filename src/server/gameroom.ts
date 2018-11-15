@@ -1,6 +1,7 @@
 import GameSocket from './gamesocket';
 import { Entity, Vector } from 'turn-based-combat-framework';
 import Stage from '../sync/stage';
+import ResolubleManager from './resolublecontext';
 
 export default class GameRoom {
     private stage: Stage;
@@ -15,10 +16,62 @@ export default class GameRoom {
         this.active = true;
         this.stage = new Stage(5, 5, 1);
 
+        this.begin_match();
+
+        this.stage.battle.register_pre_tick_callback(this.on_pre_tick, this);
+        this.stage.battle.register_post_tick_callback(this.on_post_tick, this);
+
+        for (const connection of this.connections) {
+            connection.socket.on('resoluble', (data: any) => {
+                this.stage.battle.deserialize_resoluble(data.resoluble);
+            });
+        }
+    }
+
+    public update(dt: number): void {
+        this.stage.battle.update(dt);
+    }
+
+    public close(): void {
+        if (!this.active) return;
+
+        this.active = false;
+
+        for (const connection of this.connections) {
+            connection.matched = false;
+            connection.room = null;
+
+            if (connection.socket.connected) {
+                connection.socket.emit('room-closed');
+            }
+        }
+
+        console.log(this.key + ' closed.');
+    }
+
+    private on_pre_tick(): void {
+        for (const entity of this.stage.entities) {
+            this.stage.battle.call_resoluble('Attack', true, entity);
+        }
+
+        ResolubleManager.prepare_resolubles(this.stage.battle.get_delayed_resolubles());
+    }
+
+    private on_post_tick(): void {
+        for (const connection of this.connections) {
+            connection.socket.emit('post-tick', {
+                turn: this.stage.battle.serialize_turn()
+            });
+        }
+    }
+
+    private begin_match(): void {
         let index: number = 0;
         for (const class_key of this.p1.settings.units) {
             const entity: Entity = new Entity();
             entity.identifier.class_key = class_key;
+            entity.combat.alive = true;
+            entity.combat.current_health = 1;
             entity.spatial = {
                 position: new Vector(0, 1 + index, 0),
                 facing: new Vector(1, -1, 0),
@@ -34,6 +87,8 @@ export default class GameRoom {
         for (const class_key of this.p2.settings.units) {
             const entity: Entity = new Entity();
             entity.identifier.class_key = class_key;
+            entity.combat.alive = true;
+            entity.combat.current_health = 1;
             entity.spatial = {
                 position: new Vector(4, 1 + index, 0),
                 facing: new Vector(-1, 1, 0),
@@ -62,26 +117,5 @@ export default class GameRoom {
         this.p2.socket.emit('matched', payload2);
         this.p2.matched = true;
         this.p2.room = this;
-    }
-
-    public tick(dt: number): void {
-        this.stage.battle.update(dt);
-    }
-
-    public close(): void {
-        if (!this.active) return;
-
-        this.active = false;
-
-        for (const connection of this.connections) {
-            connection.matched = false;
-            connection.room = null;
-
-            if (connection.socket.connected) {
-                connection.socket.emit('room-closed');
-            }
-        }
-
-        console.log(this.key + ' closed.');
     }
 }

@@ -4,7 +4,7 @@ import GameRoom from './gameroom';
 import UID from './uid';
 
 export default class GameServer {
-    private readonly TICK_RATE: number = 60;
+    private readonly UPDATE_RATE: number = 60;
 
     private _io: SocketIO.Server;
 
@@ -12,7 +12,7 @@ export default class GameServer {
     private rooms: Array<GameRoom>;
 
     private uid: UID;
-    private last_tick_now: number;
+    private last_update_now: number;
 
     public get io(): SocketIO.Server {
         return this._io;
@@ -37,17 +37,17 @@ export default class GameServer {
             });
         });
 
-        setInterval(this.tick.bind(this), 1000 / this.TICK_RATE);
+        setInterval(this.update.bind(this), 1000 / this.UPDATE_RATE);
     }
 
-    private tick(): void {
+    private update(): void {
         this.cleanup();
         this.matchmake();
         const dt: number = this.calculate_dt();
 
         const active_rooms: Array<GameRoom> = this.rooms.filter(room => room.active);
         for (const room of active_rooms) {
-            room.tick(dt);
+            room.update(dt);
         }
     }
 
@@ -79,9 +79,9 @@ export default class GameServer {
 
     private calculate_dt(): number {
         const now: number = Date.now();
-        const dt: number = now - this.last_tick_now;
-        this.last_tick_now = Date.now();
+        const dt: number = now - this.last_update_now;
+        this.last_update_now = Date.now();
 
-        return dt;
+        return dt / 1000;
     }
 }

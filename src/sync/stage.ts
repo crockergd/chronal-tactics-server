@@ -1,5 +1,5 @@
 import Cell from './cell';
-import { Battle, TickMode } from 'turn-based-combat-framework';
+import { Battle, TickMode, Entity } from 'turn-based-combat-framework';
 
 export default class Stage {
     public battle: Battle;
@@ -13,6 +13,10 @@ export default class Stage {
     public tile_height: number;
 
     public grid: Cell[][];
+
+    public get entities(): Entity[] {
+        return this.battle.get_entities();
+    }
 
     constructor(width: number, height: number, depth: number) {
         this.battle = new Battle(TickMode.SYNC);
