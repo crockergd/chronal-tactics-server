@@ -1,5 +1,5 @@
 import GameRoom from './gameroom';
-import ClientSettings from './clientsettings';
+import ClientSettings from '../sync/clientsettings';
 
 export default class GameSocket {
     public initialized: boolean;
@@ -13,9 +13,10 @@ export default class GameSocket {
     }
 
     public get alive(): boolean {
-        if (!this.initialized) return true;
         if (!this.active) return false;
         if (!this.socket.connected) return false;
+        if (!this.initialized) return true;
+
         return true;
     }
 

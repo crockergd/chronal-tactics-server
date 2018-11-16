@@ -29,19 +29,23 @@ export default abstract class ResolubleManager {
         const exclusive_types: Array<string> = ['Face', 'Move'];
         for (const type of exclusive_types) {
             const typed_resolubles: Array<Resoluble> = resolubles.filter(resoluble => resoluble.type === type);
-            let latest_resoluble: Resoluble;
+            const distinct_entity_keys: Array<string> = Array.from(new Set(typed_resolubles.map(resoluble => (resoluble as any).source.key)));
 
-            for (const typed_resoluble of typed_resolubles) {
-                typed_resoluble.active = false;
+            for (const distinct_entity_key of distinct_entity_keys) {
+                const key_filtered_resolubles: Array<Resoluble> = typed_resolubles.filter(resoluble => (resoluble as any).source.key === distinct_entity_key);
+                
+                let latest_resoluble: Resoluble;
 
-                if (!latest_resoluble || latest_resoluble.timestamp < typed_resoluble.timestamp){
-                    latest_resoluble = typed_resoluble;
+                for (const key_filtered_resoluble of key_filtered_resolubles) {
+                    key_filtered_resoluble.active = false;
+    
+                    if (!latest_resoluble || latest_resoluble.timestamp < key_filtered_resoluble.timestamp) {
+                        latest_resoluble = key_filtered_resoluble;
+                    }
                 }
-            }
-
-            if (latest_resoluble) latest_resoluble.active = true;
+    
+                if (latest_resoluble) latest_resoluble.active = true;
+            }     
         }
-
-        resolubles = resolubles.filter(resoluble => resoluble.active);
     }
 }

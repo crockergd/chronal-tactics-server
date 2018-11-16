@@ -2,6 +2,7 @@ import sio from 'socket.io';
 import GameSocket from './gamesocket';
 import GameRoom from './gameroom';
 import UID from './uid';
+import Log from './log';
 
 export default class GameServer {
     private readonly UPDATE_RATE: number = 60;
@@ -29,11 +30,12 @@ export default class GameServer {
         this.io.on('connection', (socket: SocketIO.Socket) => {
             const connection: GameSocket = new GameSocket(this.uid.next('socket'), socket);
             this.connections.push(connection);
-            console.log('Connection ' + connection.key + ' added.');
+            Log.info('Connection ' + connection.key + ' added.');
 
-            connection.socket.on('init', (settings: any) => {
+            connection.socket.on('matchmake', (settings: any) => {
                 connection.initialized = true;
                 connection.settings = settings;
+                Log.info('Connection ' + connection.key + ' began matchmaking.');
             });
         });
 
@@ -56,7 +58,7 @@ export default class GameServer {
         if (!dead_connections.length) return;
 
         for (const connection of dead_connections) {
-            console.log('Connection ' + connection.key + ' removed.');
+            Log.info('Connection ' + connection.key + ' removed.');
             if (connection.room) connection.room.close();
         }
 
@@ -72,7 +74,7 @@ export default class GameServer {
         const p2: GameSocket = unmatched_connections[1];
 
         const room: GameRoom = new GameRoom(this.uid.next('room'), p1, p2);
-        console.log('Connections ' + p1.key + ' and ' + p2.key + ' matched into ' + room.key + '.');
+        Log.info('Connections ' + p1.key + ' and ' + p2.key + ' matched into ' + room.key + '.');
 
         this.rooms.push(room);
     }

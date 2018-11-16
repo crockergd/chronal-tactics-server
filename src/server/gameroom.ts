@@ -2,6 +2,7 @@ import GameSocket from './gamesocket';
 import { Entity, Vector } from 'turn-based-combat-framework';
 import Stage from '../sync/stage';
 import ResolubleManager from './resolublecontext';
+import Log from './log';
 
 export default class GameRoom {
     private stage: Stage;
@@ -30,6 +31,10 @@ export default class GameRoom {
 
     public update(dt: number): void {
         this.stage.battle.update(dt);
+
+        if (this.stage.battle.get_team_wiped()) {
+            this.close();
+        }
     }
 
     public close(): void {
@@ -40,13 +45,14 @@ export default class GameRoom {
         for (const connection of this.connections) {
             connection.matched = false;
             connection.room = null;
+            connection.initialized = false;
 
             if (connection.socket.connected) {
                 connection.socket.emit('room-closed');
             }
         }
 
-        console.log(this.key + ' closed.');
+        Log.info(this.key + ' closed.');
     }
 
     private on_pre_tick(): void {
