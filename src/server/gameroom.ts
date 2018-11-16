@@ -1,7 +1,7 @@
 import GameSocket from './gamesocket';
-import { Entity, Vector } from 'turn-based-combat-framework';
+import { Entity, Vector, Resoluble } from 'turn-based-combat-framework';
 import Stage from '../sync/stage';
-import ResolubleManager from './resolublecontext';
+import ResolubleManager from './resolublemanager';
 import Log from './log';
 
 export default class GameRoom {
@@ -15,7 +15,7 @@ export default class GameRoom {
 
     constructor(readonly key: string, private readonly p1: GameSocket, private readonly p2: GameSocket) {
         this.active = true;
-        this.stage = new Stage(5, 5, 1);
+        this.stage = new Stage(7, 7, 1);
 
         this.begin_match();
 
@@ -60,7 +60,10 @@ export default class GameRoom {
             this.stage.battle.call_resoluble('Attack', true, entity);
         }
 
-        ResolubleManager.prepare_resolubles(this.stage.battle.get_delayed_resolubles());
+        const delayed_resolubles: Array<Resoluble> = this.stage.battle.get_delayed_resolubles()
+
+        ResolubleManager.prepare_resolubles(delayed_resolubles);
+        ResolubleManager.validate_moves(this.stage, delayed_resolubles.filter(resoluble => resoluble.active));
     }
 
     private on_post_tick(): void {
@@ -79,7 +82,7 @@ export default class GameRoom {
             entity.combat.alive = true;
             entity.combat.current_health = 1;
             entity.spatial = {
-                position: new Vector(0, 1 + index, 0),
+                position: new Vector(0, 0 + index, 0),
                 facing: new Vector(1, -1, 0),
                 has_moved: false
             }
@@ -96,7 +99,7 @@ export default class GameRoom {
             entity.combat.alive = true;
             entity.combat.current_health = 1;
             entity.spatial = {
-                position: new Vector(4, 1 + index, 0),
+                position: new Vector(4, 0 + index, 0),
                 facing: new Vector(-1, 1, 0),
                 has_moved: false
             }
