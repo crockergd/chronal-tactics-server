@@ -25,18 +25,16 @@ export default class GameRoom {
         this.stage = new Stage(7, 7, 1);
         this.state = RoomState.CREATED;
 
-        this.begin_match();
-
         for (const connection of this.connections) {
             connection.socket.on('deployment-ready', () => {
                 connection.state = SocketState.DEPLOYMENT;
 
-                connection.socket.on('deployment-complete', (data: any) => {
-                    connection.socket.on('resoluble', (data: any) => {
-                        this.stage.battle.deserialize_resoluble(data.resoluble);
+                connection.socket.on('deployment-complete', (deployment_payload: any) => {
+                    connection.socket.on('resoluble', (resoluble_payload: any) => {
+                        this.stage.battle.deserialize_resoluble(resoluble_payload.resoluble);
                     });
 
-                    const entities: Array<[string, Vector]> = data.entities;
+                    const entities: Array<[string, Vector]> = deployment_payload.entities;
 
                     for (const entity_spec of entities) {
                         const entity: Entity = new Entity();
@@ -58,6 +56,8 @@ export default class GameRoom {
 
             connection.state = SocketState.MATCHED;
         }
+
+        this.begin_match();
     }
 
     public update(dt: number): void {
@@ -105,13 +105,14 @@ export default class GameRoom {
         for (const connection of this.connections) {
             if (connection.alive) {
                 connection.room = null;
-                connection.socket.removeAllListeners();
+                connection.socket.removeAllListeners();                
 
                 connection.state = SocketState.CREATED;
                 connection.socket.emit('room-closed');
             }
         }
 
+        this.state = RoomState.DEAD;
         Log.info(this.key + ' closed.');
     }
 

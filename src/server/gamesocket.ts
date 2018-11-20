@@ -30,6 +30,6 @@ export default class GameSocket {
 
     public close(): void {
         this.room = null;
-        this.socket.disconnect(true);
+        // this.socket.disconnect(true);
     }
 }

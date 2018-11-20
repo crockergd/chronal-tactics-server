@@ -64,8 +64,6 @@ export default class GameServer {
 
     private cleanup(): void {
         const dead_connections: Array<GameSocket> = this.connections.filter(connection => !connection.alive);
-        if (!dead_connections.length) return;
-
         for (const connection of dead_connections) {
             Log.info('Connection ' + connection.key + ' removed.');
             if (connection.room) connection.room.close();
