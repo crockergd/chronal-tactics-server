@@ -1,7 +1,8 @@
 export const enum RoomState {
     CREATED,
     DEPLOYMENT,
-    BATTLE
+    BATTLE,
+    DEAD
 }
 
 export default RoomState;

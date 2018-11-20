@@ -3,6 +3,7 @@ import GameSocket from './gamesocket';
 import GameRoom from './gameroom';
 import UID from './uid';
 import Log from './log';
+import SocketState from '../states/socketstate';
 
 export default class GameServer {
     private readonly UPDATE_RATE: number = 60;
@@ -31,12 +32,6 @@ export default class GameServer {
             const connection: GameSocket = new GameSocket(this.uid.next('socket'), socket);
             this.connections.push(connection);
             Log.info('Connection ' + connection.key + ' added.');
-
-            connection.socket.on('matchmake', (settings: any) => {
-                connection.initialized = true;
-                connection.settings = settings;
-                Log.info('Connection ' + connection.key + ' began matchmaking.');
-            });
         });
 
         setInterval(this.update.bind(this), 1000 / this.UPDATE_RATE);
@@ -44,12 +39,26 @@ export default class GameServer {
 
     private update(): void {
         this.cleanup();
+        this.initialize();
         this.matchmake();
         const dt: number = this.calculate_dt();
 
-        const active_rooms: Array<GameRoom> = this.rooms.filter(room => room.active);
-        for (const room of active_rooms) {
+        for (const room of this.rooms) {
             room.update(dt);
+        }
+    }
+
+    private initialize(): void {
+        const uninitialized_connections: Array<GameSocket> = this.connections.filter(connection => connection.state === SocketState.CREATED);
+        for (const connection of uninitialized_connections) {
+            connection.socket.on('matchmake', (settings: any) => {
+                connection.settings = settings;
+                Log.info('Connection ' + connection.key + ' began matchmaking.');
+
+                connection.state = SocketState.MATCHMAKING;
+            });
+
+            connection.state = SocketState.INITIALIZED;
         }
     }
 
@@ -60,14 +69,15 @@ export default class GameServer {
         for (const connection of dead_connections) {
             Log.info('Connection ' + connection.key + ' removed.');
             if (connection.room) connection.room.close();
+            connection.close();
         }
 
-        this.rooms = this.rooms.filter(room => room.active);
+        this.rooms = this.rooms.filter(room => room.alive);
         this.connections = this.connections.filter(connection => connection.alive);
     }
 
     private matchmake(): void {
-        const unmatched_connections: Array<GameSocket> = this.connections.filter(connection => !connection.matched && connection.initialized);
+        const unmatched_connections: Array<GameSocket> = this.connections.filter(connection => connection.state === SocketState.MATCHMAKING);
         if (unmatched_connections.length < 2) return;
 
         const p1: GameSocket = unmatched_connections[0];

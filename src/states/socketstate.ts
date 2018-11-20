@@ -1,7 +1,11 @@
 export const enum SocketState {
     CREATED,
+    INITIALIZED,
+    MATCHMAKING,
+    MATCHED,
     DEPLOYMENT,
-    BATTLE
+    BATTLE,
+    DEAD
 }
 
 export default SocketState;
