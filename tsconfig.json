@@ -7,7 +7,7 @@
             "es2017",
             "scripthost"
         ],
-        "sourceMap": true,
+        "sourceMap": false,
         "outDir": "./dist",
         "strict": true,        
         "strictNullChecks": false,
