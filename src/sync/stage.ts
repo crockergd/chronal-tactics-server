@@ -1,5 +1,5 @@
 import Cell from './cell';
-import { Battle, TickMode, Entity } from 'turn-based-combat-framework';
+import { Battle, TickMode, Entity, Vector } from 'turn-based-combat-framework';
 
 export default class Stage {
     public battle: Battle;
@@ -32,6 +32,14 @@ export default class Stage {
                 this.grid[i][j] = new Cell(0);
             }
         }
+    }
+
+    public static local_within_specific(local: Vector, tiles: Array<Vector>): boolean {
+        for (const tile of tiles) {
+            if (local.x === tile.x && local.y === tile.y) return true;
+        }
+
+        return false;
     }
 
     public toJSON(): any {

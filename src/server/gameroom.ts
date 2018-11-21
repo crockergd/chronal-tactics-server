@@ -10,6 +10,7 @@ export default class GameRoom {
     private stage: Stage;
     private state: RoomState;
     private deployment_timeout: number = 999;
+    private deployment_max: number = 4;
 
     private get connections(): Array<GameSocket> {
         return [this.p1, this.p2];
@@ -27,31 +28,20 @@ export default class GameRoom {
 
         for (const connection of this.connections) {
             connection.socket.on('deployment-ready', () => {
+                if (connection.state !== SocketState.MATCHED) return;
                 connection.state = SocketState.DEPLOYMENT;
+            });
 
-                connection.socket.on('deployment-complete', (deployment_payload: any) => {
-                    connection.socket.on('resoluble', (resoluble_payload: any) => {
-                        this.stage.battle.deserialize_resoluble(resoluble_payload.resoluble);
-                    });
+            connection.socket.on('battle-ready', (deployment_payload: any) => {
+                if (connection.state !== SocketState.DEPLOYMENT) return;
+                connection.state = SocketState.BATTLE;
+                connection.units = deployment_payload.entities;
+            });
 
-                    const entities: Array<[string, Vector]> = deployment_payload.entities;
+            connection.socket.on('resoluble', (resoluble_payload: any) => {
+                if (connection.state !== SocketState.BATTLE) return;
 
-                    for (const entity_spec of entities) {
-                        const entity: Entity = new Entity();
-                        entity.identifier.class_key = entity_spec[0];
-                        entity.combat.alive = true;
-                        entity.combat.current_health = 1;
-                        entity.spatial = {
-                            position: new Vector(entity_spec[1].x, entity_spec[1].y, entity_spec[1].z),
-                            facing: connection.team === 0 ? new Vector(1, -1, 0) : new Vector(-1, 1, 0),
-                            has_moved: false
-                        };
-
-                        this.stage.battle.add_entity(entity, connection.team);
-                    }
-
-                    connection.state = SocketState.BATTLE;
-                });
+                this.stage.battle.deserialize_resoluble(resoluble_payload.resoluble);
             });
 
             connection.state = SocketState.MATCHED;
@@ -67,7 +57,25 @@ export default class GameRoom {
                     this.state = RoomState.DEPLOYMENT;
 
                     for (const connection of this.connections) {
-                        connection.socket.emit('deployment-started');
+                        const deployment_axes: Array<number> = new Array<number>();
+                        if (connection.team === 0) {
+                            deployment_axes.push(0, 1);
+                        } else {
+                            deployment_axes.push(this.stage.width - 1, this.stage.width - 2);
+                        }
+
+                        const deployment_tiles: Array<Vector> = new Array<Vector>();
+                        for (let i: number = 0; i < this.stage.height; i++) {
+                            for (const axis of deployment_axes) {
+                                deployment_tiles.push(new Vector(axis, i, 0));
+                            }
+                        }
+                        
+                        connection.tiles = deployment_tiles;
+                        connection.socket.emit('deployment-started', {
+                            deployment_max: this.deployment_max,
+                            deployment_tiles: connection.tiles
+                        });
                     }
                 }
                 break;
@@ -75,16 +83,37 @@ export default class GameRoom {
             case RoomState.DEPLOYMENT:
                 this.deployment_timeout -= dt;
 
-                if (this.deployment_timeout < 0 ||
-                    (this.p1.state === SocketState.BATTLE && this.p2.state === SocketState.BATTLE)) {
+                if ((this.p1.state === SocketState.BATTLE && this.p2.state === SocketState.BATTLE)) {
+                    this.state = RoomState.BATTLE;
+
+                    for (const connection of this.connections) {
+                        let index: number = 1;
+                        for (const unit of connection.units) {                            
+                            if (!Stage.local_within_specific(unit[1], connection.tiles)) continue;
+                            if (index > this.deployment_max) continue;
+
+                            const entity: Entity = new Entity();
+                            entity.identifier.class_key = unit[0];
+                            entity.combat.alive = true;
+                            entity.combat.current_health = 1;
+                            entity.spatial = {
+                                position: new Vector(unit[1].x, unit[1].y, unit[1].z),
+                                facing: connection.team === 0 ? new Vector(1, -1, 0) : new Vector(-1, 1, 0),
+                                has_moved: false
+                            };
+    
+                            this.stage.battle.add_entity(entity, connection.team);
+
+                            index++;
+                        }
+                    }  
+
                     const serialized_stage: any = JSON.stringify(this.stage);
                     for (const connection of this.connections) {
                         connection.socket.emit('battle-started', {
                             stage: serialized_stage
                         });
                     }
-
-                    this.state = RoomState.BATTLE;
                 }
 
                 break;
@@ -105,7 +134,9 @@ export default class GameRoom {
         for (const connection of this.connections) {
             if (connection.alive) {
                 connection.room = null;
-                connection.socket.removeAllListeners();                
+                connection.units = null;
+                connection.tiles = null;
+                connection.socket.removeAllListeners();
 
                 connection.state = SocketState.CREATED;
                 connection.socket.emit('room-closed');

@@ -1,6 +1,7 @@
 import GameRoom from './gameroom';
 import ClientSettings from '../sync/clientsettings';
 import SocketState from '../states/socketstate';
+import { Vector } from 'turn-based-combat-framework';
 
 export default class GameSocket {
     public state: SocketState;
@@ -8,6 +9,9 @@ export default class GameSocket {
     public room: GameRoom;
     public settings: ClientSettings;
     public team: number;
+
+    public units: Array<[string, Vector]>;
+    public tiles: Array<Vector>;
 
     public get socket(): SocketIO.Socket {
         return this._socket;
