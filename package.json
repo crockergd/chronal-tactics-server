@@ -1,7 +1,11 @@
 {
-    "name": "game-off-2018-server",
+    "name": "isochronal-tactics-server",
     "version": "0.0.1",
     "author": "George Crocker <g.crocker3@gmail.com>",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/rekys/isochronal-tactics-server.git"
+    },
     "private": true,
     "scripts": {
         "start": "tsc && node dist/index.js",
