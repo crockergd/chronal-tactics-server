@@ -1,4 +1,7 @@
+import https from 'https';
+import fs from 'fs';
 import sio from 'socket.io';
+
 import GameSocket from './gamesocket';
 import GameRoom from './gameroom';
 import UID from './uid';
@@ -6,7 +9,10 @@ import Log from './log';
 import SocketState from '../states/socketstate';
 
 export default class GameServer {
-    private readonly UPDATE_RATE: number = 60;
+    private readonly PORT: number = process.env.PORT as any || 3010;
+    private readonly SSL_ENABLED: boolean = process.env.SSL_ENABLED as any || false;
+    private readonly CERT_DIR: string = process.env.CERT_DIR as any || '/etc/letsencrypt/live/radbee.me/';
+    private readonly UPDATE_RATE: number = process.env.UPDATE_RATE as any || 60;
 
     private _io: SocketIO.Server;
 
@@ -20,8 +26,20 @@ export default class GameServer {
         return this._io;
     }
 
-    constructor(port: number) {
-        this._io = sio(port);
+    constructor() {
+        if (this.SSL_ENABLED) {
+            const server: https.Server = https.createServer({
+                key: fs.readFileSync(this.CERT_DIR + 'privkey.pem'),
+                cert: fs.readFileSync(this.CERT_DIR + 'fullchain.pem')
+            });
+
+            this._io = sio(server);
+            server.listen(this.PORT);
+        } else {
+            this._io = sio(this.PORT);
+        }
+
+        Log.info('Server listening on ' + this.PORT + '.');
 
         this.connections = new Array<GameSocket>();
         this.rooms = new Array<GameRoom>();
@@ -66,7 +84,7 @@ export default class GameServer {
         const dead_connections: Array<GameSocket> = this.connections.filter(connection => !connection.alive);
         for (const connection of dead_connections) {
             Log.info('Connection ' + connection.key + ' removed.');
-            if (connection.room) connection.room.close();
+            if (connection.room) connection.room.close_hard();
             connection.close();
         }
 

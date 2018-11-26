@@ -29,6 +29,7 @@ export default class GameRoom {
         for (const connection of this.connections) {
             connection.socket.on('deployment-ready', () => {
                 if (connection.state !== SocketState.MATCHED) return;
+                // Log.info('deployment-ready received from ' + connection.key + '.');
                 connection.state = SocketState.DEPLOYMENT;
             });
 
@@ -47,13 +48,29 @@ export default class GameRoom {
             connection.state = SocketState.MATCHED;
         }
 
-        this.begin_match();
+        const serialized_stage: any = JSON.stringify(this.stage);
+
+        let index: number = 0;
+        for (const connection of this.connections) {
+            connection.team = index;
+            connection.room = this;
+
+            connection.socket.emit('matched', {
+                team: connection.team,
+                stage: serialized_stage
+            })
+
+            index++;
+        }
+
+        this.stage.battle.register_pre_tick_callback(this.on_pre_tick, this);
+        this.stage.battle.register_post_tick_callback(this.on_post_tick, this);
     }
 
     public update(dt: number): void {
         switch (this.state) {
             case RoomState.CREATED:
-                if (this.p1.state === SocketState.DEPLOYMENT && this.p1.state === SocketState.DEPLOYMENT) {
+                if (this.p1.state === SocketState.DEPLOYMENT && this.p2.state === SocketState.DEPLOYMENT) {
                     this.state = RoomState.DEPLOYMENT;
 
                     for (const connection of this.connections) {
@@ -70,7 +87,7 @@ export default class GameRoom {
                                 deployment_tiles.push(new Vector(axis, i, 0));
                             }
                         }
-                        
+
                         connection.tiles = deployment_tiles;
                         connection.socket.emit('deployment-started', {
                             deployment_max: this.deployment_max,
@@ -88,7 +105,7 @@ export default class GameRoom {
 
                     for (const connection of this.connections) {
                         let index: number = 1;
-                        for (const unit of connection.units) {                            
+                        for (const unit of connection.units) {
                             if (!Stage.local_within_specific(unit[1], connection.tiles)) continue;
                             if (index > this.deployment_max) continue;
 
@@ -101,12 +118,12 @@ export default class GameRoom {
                                 facing: connection.team === 0 ? new Vector(1, -1, 0) : new Vector(-1, 1, 0),
                                 has_moved: false
                             };
-    
+
                             this.stage.battle.add_entity(entity, connection.team);
 
                             index++;
                         }
-                    }  
+                    }
 
                     const serialized_stage: any = JSON.stringify(this.stage);
                     for (const connection of this.connections) {
@@ -122,15 +139,33 @@ export default class GameRoom {
                 this.stage.battle.update(dt);
 
                 if (this.stage.battle.get_team_wiped()) {
-                    Log.info(this.key + ' match ended successfully. Team ' + this.stage.battle.get_team_defeated() + ' defeated.');
-                    this.close();
+                    const teams_defeated: Array<number> = this.stage.battle.get_teams_defeated();
+                    let winning_team: number = -1;
+
+                    if (teams_defeated.find(team => team === this.p1.team) && !teams_defeated.find(team => team === this.p2.team)) {
+                        winning_team = this.p2.team;
+                    } else if (!teams_defeated.find(team => team === this.p1.team) && teams_defeated.find(team => team === this.p2.team)) {
+                        winning_team = this.p1.team;
+                    }
+
+                    for (const connection of this.connections) {
+                        connection.socket.emit('battle-completed', {
+                            winning_team: winning_team
+                        });
+                    }
+
+                    Log.info(this.key + ' match ended successfully.');
+                    this.close_soft();
                 }
 
                 break;
         }
     }
 
-    public close(): void {
+    /**
+     * Close the room gracefully after match completion
+     */
+    public close_soft(): void {
         for (const connection of this.connections) {
             if (connection.alive) {
                 connection.room = null;
@@ -139,11 +174,24 @@ export default class GameRoom {
                 connection.socket.removeAllListeners();
 
                 connection.state = SocketState.CREATED;
-                connection.socket.emit('room-closed');
             }
         }
 
         this.state = RoomState.DEAD;
+    }
+
+    /**
+     * Close the room forcefully after a disconnection or failure, disconnecting all remaining clients
+     */
+    public close_hard(): void {
+        this.close_soft();
+
+        for (const connection of this.connections) {
+            if (connection.alive) {
+                connection.socket.emit('room-closed');
+            }
+        }
+
         Log.info(this.key + ' closed.');
     }
 
@@ -164,25 +212,5 @@ export default class GameRoom {
                 turn: this.stage.battle.serialize_turn()
             });
         }
-    }
-
-    private begin_match(): void {
-        const serialized_stage: any = JSON.stringify(this.stage);
-
-        let index: number = 0;
-        for (const connection of this.connections) {
-            connection.team = index;
-            connection.room = this;
-
-            connection.socket.emit('matched', {
-                team: connection.team,
-                stage: serialized_stage
-            })
-
-            index++;
-        }
-
-        this.stage.battle.register_pre_tick_callback(this.on_pre_tick, this);
-        this.stage.battle.register_post_tick_callback(this.on_post_tick, this);
     }
 }
