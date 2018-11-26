@@ -1,0 +1,12 @@
+{
+    "apps": [
+        {
+            "name": "isochronal-tactics-server",
+            "script": "./dist/index.js",
+            "watch": true,
+            "env": {
+                "SSL_ENABLED": "true"
+            }
+        }
+    ]
+}
