@@ -1,6 +1,6 @@
 {
     "name": "isochronal-tactics-server",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "George Crocker <g.crocker3@gmail.com>",
     "repository": {
         "type": "git",
@@ -15,7 +15,7 @@
     "dependencies": {
         "@types/socket.io": "^2.1.0",
         "socket.io": "^2.1.1",
-        "turn-based-combat-framework": "^0.0.2"
+        "turn-based-combat-framework": "^0.0.3"
     },
     "devDependencies": {
         "typescript": "^3.1.6"
