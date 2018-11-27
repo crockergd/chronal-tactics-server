@@ -22,6 +22,11 @@ export default class GameRoom {
         return true;
     }
 
+    public get interval(): number {
+        const living_entity_count: number = this.stage.entities.filter(entity => entity.alive).length;
+        return 1.4 + (0.2 * living_entity_count);
+    }
+
     constructor(readonly key: string, private readonly p1: GameSocket, private readonly p2: GameSocket) {
         this.stage = new Stage(7, 7, 1);
         this.state = RoomState.CREATED;
@@ -37,6 +42,13 @@ export default class GameRoom {
                 if (connection.state !== SocketState.DEPLOYMENT) return;
                 connection.state = SocketState.BATTLE;
                 connection.units = deployment_payload.entities;
+
+                for (const deployment_connection of this.connections) {
+                    // Log.info('player-ready emitted to ' + deployment_connection.key + '.');
+                    deployment_connection.socket.emit('player-readied', {
+                        players_ready: this.connections.filter(connection => connection.state === SocketState.BATTLE).length
+                    });
+                }
             });
 
             connection.socket.on('resoluble', (resoluble_payload: any) => {
@@ -50,18 +62,23 @@ export default class GameRoom {
 
         const serialized_stage: any = JSON.stringify(this.stage);
 
-        let index: number = 0;
-        for (const connection of this.connections) {
-            connection.team = index;
-            connection.room = this;
+        this.p1.team = 0;
+        this.p2.team = 1;
 
-            connection.socket.emit('matched', {
-                team: connection.team,
-                stage: serialized_stage
-            })
+        this.p1.room = this;
+        this.p2.room = this;
 
-            index++;
-        }
+        this.p1.socket.emit('matched', {
+            team: this.p1.team,
+            stage: serialized_stage,
+            opponent: this.p2.settings.name
+        });
+
+        this.p2.socket.emit('matched', {
+            team: this.p2.team,
+            stage: serialized_stage,
+            opponent: this.p1.settings.name
+        });
 
         this.stage.battle.register_pre_tick_callback(this.on_pre_tick, this);
         this.stage.battle.register_post_tick_callback(this.on_post_tick, this);
@@ -128,7 +145,8 @@ export default class GameRoom {
                     const serialized_stage: any = JSON.stringify(this.stage);
                     for (const connection of this.connections) {
                         connection.socket.emit('battle-started', {
-                            stage: serialized_stage
+                            stage: serialized_stage,
+                            interval: this.interval
                         });
                     }
                 }
@@ -137,14 +155,15 @@ export default class GameRoom {
 
             case RoomState.BATTLE:
                 this.stage.battle.update(dt);
+                this.stage.battle.set_async_interval(this.interval);
 
                 if (this.stage.battle.get_team_wiped()) {
                     const teams_defeated: Array<number> = this.stage.battle.get_teams_defeated();
                     let winning_team: number = -1;
 
-                    if (teams_defeated.find(team => team === this.p1.team) && !teams_defeated.find(team => team === this.p2.team)) {
+                    if (teams_defeated.filter(team => team === this.p1.team).length && !teams_defeated.filter(team => team === this.p2.team).length) {
                         winning_team = this.p2.team;
-                    } else if (!teams_defeated.find(team => team === this.p1.team) && teams_defeated.find(team => team === this.p2.team)) {
+                    } else if (!teams_defeated.filter(team => team === this.p1.team).length && teams_defeated.filter(team => team === this.p2.team).length) {
                         winning_team = this.p1.team;
                     }
 
@@ -209,7 +228,8 @@ export default class GameRoom {
     private on_post_tick(): void {
         for (const connection of this.connections) {
             connection.socket.emit('post-tick', {
-                turn: this.stage.battle.serialize_turn()
+                turn: this.stage.battle.serialize_turn(),
+                interval: this.stage.battle.get_async_interval()
             });
         }
     }
