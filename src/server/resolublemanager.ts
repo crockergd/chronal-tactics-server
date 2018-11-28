@@ -55,6 +55,7 @@ export default abstract class ResolubleManager {
 
     public static validate_moves(stage: Stage, resolubles: Array<Resoluble>): void {
         let occupied_positions: Array<[Entity, Vector, boolean]> = [];
+        let contested_positions: Array<[Entity, Entity, Move]> = [];
 
         // culls movement resolubles that would place an entity in unpathable terrain (on top of another entity or outside the map bounds)
         for (const entity of stage.entities) {
@@ -81,9 +82,10 @@ export default abstract class ResolubleManager {
                 continue;
             }
 
-            if (stage.battle.get_entity_by_position(new_position)) {
-                move.invalidate();
-                continue;
+            // flag potentially unpathable terrain, these are valid moves if the entity currently on the tile will also move this turn
+            const contested_entity: Entity = stage.battle.get_entity_by_position(new_position);
+            if (contested_entity) {
+                contested_positions.push([entity, contested_entity, move]);
             }
 
             occupied_positions.push([entity, new_position, false]);
@@ -99,6 +101,13 @@ export default abstract class ResolubleManager {
 
         for (const fatal_position of occupied_positions.filter(occupied_position => occupied_position[2])) {            
             stage.battle.call_resoluble('Death', true, fatal_position[0]);
+        }
+
+        // invalidate moves that take an entity onto an occupied tile that the occupier is not moving off of
+        for (const contested_position of contested_positions) {
+            const move: Move = resolubles.find(resoluble => resoluble.type === 'Move' && (resoluble as any).source.key === contested_position[1].key) as any;
+            if (move && move.active) continue; // entity can continue if occupier is moving this turn
+            contested_position[2].invalidate();
         }
     }
 }
