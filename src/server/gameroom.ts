@@ -167,18 +167,36 @@ export default class GameRoom {
                         winning_team = this.p1.team;
                     }
 
-                    for (const connection of this.connections) {
-                        connection.socket.emit('battle-completed', {
-                            winning_team: winning_team
-                        });
+                    this.complete_match(winning_team);
+                }
+
+                const p1_entity_count: number = this.stage.entities.filter(entity => entity.team === this.p1.team).length;
+                const p2_entity_count: number = this.stage.entities.filter(entity => entity.team === this.p2.team).length;
+                if (!p1_entity_count || !p2_entity_count) {
+                    let winning_team: number = -1;
+
+                    if (!p1_entity_count && p2_entity_count) {
+                        winning_team = this.p2.team;
+                    } else if (p1_entity_count && !p2_entity_count) {
+                        winning_team = this.p1.team;
                     }
 
-                    Log.info(this.key + ' match ended successfully.');
-                    this.close_soft();
+                    this.complete_match(winning_team);
                 }
 
                 break;
         }
+    }
+
+    public complete_match(winning_team: number): void {
+        for (const connection of this.connections) {
+            connection.socket.emit('battle-completed', {
+                winning_team: winning_team
+            });
+        }
+
+        Log.info(this.key + ' match ended successfully.');
+        this.close_soft();
     }
 
     /**
