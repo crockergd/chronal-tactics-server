@@ -87,7 +87,22 @@ export default abstract class ResolubleManager {
             if (contested_entity) {
                 contested_positions.push([entity, contested_entity, move]);
             }
+        }
 
+        // invalidate moves that take an entity onto an occupied tile that the occupier is not moving off of
+        for (const contested_position of contested_positions) {
+            const move: Move = resolubles.find(resoluble => resoluble.type === 'Move' && (resoluble as any).source.key === contested_position[1].key) as any;
+            if (move && move.active) continue; // entity can continue if occupier is moving this turn
+            contested_position[2].invalidate();
+        }
+
+        for (const entity of stage.entities) {
+            const face: Face = resolubles.find(resoluble => resoluble.type === 'Face' && (resoluble as any).source.key === entity.key) as any;
+            if (!face) continue;
+            const move: Move = resolubles.find(resoluble => resoluble.type === 'Move' && (resoluble as any).source.key === entity.key) as any;
+            if (!move || !move.active) continue;
+
+            const new_position: Vector = Move.calculate_new_position(move.source.spatial.position, face.facing);
             occupied_positions.push([entity, new_position, false]);
         }
 
@@ -99,15 +114,8 @@ export default abstract class ResolubleManager {
             }
         }
 
-        for (const fatal_position of occupied_positions.filter(occupied_position => occupied_position[2])) {            
+        for (const fatal_position of occupied_positions.filter(occupied_position => occupied_position[2])) {
             stage.battle.call_resoluble('Death', true, fatal_position[0]);
-        }
-
-        // invalidate moves that take an entity onto an occupied tile that the occupier is not moving off of
-        for (const contested_position of contested_positions) {
-            const move: Move = resolubles.find(resoluble => resoluble.type === 'Move' && (resoluble as any).source.key === contested_position[1].key) as any;
-            if (move && move.active) continue; // entity can continue if occupier is moving this turn
-            contested_position[2].invalidate();
         }
     }
 }

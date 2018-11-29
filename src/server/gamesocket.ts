@@ -2,11 +2,12 @@ import GameRoom from './gameroom';
 import ClientSettings from '../sync/clientsettings';
 import SocketState from '../states/socketstate';
 import { Vector } from 'turn-based-combat-framework';
+import TrainingRoom from './trainingroom';
 
 export default class GameSocket {
     public state: SocketState;
 
-    public room: GameRoom;
+    public room: GameRoom | TrainingRoom;
     public settings: ClientSettings;
     public team: number;
 

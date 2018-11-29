@@ -11,6 +11,7 @@ export default class GameRoom {
     private state: RoomState;
     private deployment_timeout: number = 999;
     private deployment_max: number = 4;
+    private players_max: number = 2;
 
     private get connections(): Array<GameSocket> {
         return [this.p1, this.p2];
@@ -71,13 +72,15 @@ export default class GameRoom {
         this.p1.socket.emit('matched', {
             team: this.p1.team,
             stage: serialized_stage,
-            opponent: this.p2.settings.name
+            opponent: this.p2.settings.name,
+            training: false
         });
 
         this.p2.socket.emit('matched', {
             team: this.p2.team,
             stage: serialized_stage,
-            opponent: this.p1.settings.name
+            opponent: this.p1.settings.name,
+            training: false
         });
 
         this.stage.battle.register_pre_tick_callback(this.on_pre_tick, this);
@@ -107,6 +110,7 @@ export default class GameRoom {
 
                         connection.tiles = deployment_tiles;
                         connection.socket.emit('deployment-started', {
+                            players_max: this.players_max,
                             deployment_max: this.deployment_max,
                             deployment_tiles: connection.tiles
                         });

@@ -7,6 +7,7 @@ import GameRoom from './gameroom';
 import UID from './uid';
 import Log from './log';
 import SocketState from '../states/socketstate';
+import TrainingRoom from './trainingroom';
 
 export default class GameServer {
     private readonly PORT: number = process.env.PORT as any || 3010;
@@ -17,7 +18,7 @@ export default class GameServer {
     private _io: SocketIO.Server;
 
     private connections: Array<GameSocket>;
-    private rooms: Array<GameRoom>;
+    private rooms: Array<GameRoom | TrainingRoom>;
 
     private uid: UID;
     private last_update_now: number;
@@ -76,6 +77,13 @@ export default class GameServer {
                 connection.state = SocketState.MATCHMAKING;
             });
 
+            connection.socket.on('matchmake_training', (settings: any) => {
+                connection.settings = settings;
+                Log.info('Connection ' + connection.key + ' began matchmaking for training.');
+
+                connection.state = SocketState.MATCHMAKING_TRAINING;
+            });
+
             connection.state = SocketState.INITIALIZED;
         }
     }
@@ -94,15 +102,24 @@ export default class GameServer {
 
     private matchmake(): void {
         const unmatched_connections: Array<GameSocket> = this.connections.filter(connection => connection.state === SocketState.MATCHMAKING);
-        if (unmatched_connections.length < 2) return;
+        if (unmatched_connections.length > 1) {
+            const p1: GameSocket = unmatched_connections[0];
+            const p2: GameSocket = unmatched_connections[1];
+    
+            const room: GameRoom = new GameRoom(this.uid.next('room'), p1, p2);
+            Log.info('Connections ' + p1.key + ' and ' + p2.key + ' matched into ' + room.key + '.');
+    
+            this.rooms.push(room);
+        }
 
-        const p1: GameSocket = unmatched_connections[0];
-        const p2: GameSocket = unmatched_connections[1];
+        const unmatched_training_connections: Array<GameSocket> = this.connections.filter(connection => connection.state === SocketState.MATCHMAKING_TRAINING);
+        if (unmatched_training_connections.length) {
+            const p1: GameSocket = unmatched_training_connections[0];
+            const room: TrainingRoom = new TrainingRoom(this.uid.next('training'), p1);
+            Log.info('Connection ' + p1.key + ' matched into ' + room.key + '.');
 
-        const room: GameRoom = new GameRoom(this.uid.next('room'), p1, p2);
-        Log.info('Connections ' + p1.key + ' and ' + p2.key + ' matched into ' + room.key + '.');
-
-        this.rooms.push(room);
+            this.rooms.push(room);
+        }
     }
 
     private calculate_dt(): number {
