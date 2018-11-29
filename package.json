@@ -1,6 +1,6 @@
 {
     "name": "isochronal-tactics-server",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "author": "George Crocker <g.crocker3@gmail.com>",
     "repository": {
         "type": "git",

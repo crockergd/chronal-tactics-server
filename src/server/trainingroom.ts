@@ -235,7 +235,7 @@ export default class TrainingRoom {
         sword.combat.alive = true;
         sword.combat.current_health = 1;
         sword.spatial = {
-            position: new Vector(5, 3),
+            position: new Vector(6, 3),
             facing: new Vector(-1, 1, 0),
             has_moved: false
         };
