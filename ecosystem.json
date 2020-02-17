@@ -1,7 +1,7 @@
 {
     "apps": [
         {
-            "name": "isochronal-tactics-server",
+            "name": "chronal-tactics-server",
             "script": "./dist/index.js",
             "watch": true,
             "env": {

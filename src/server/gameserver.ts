@@ -12,7 +12,7 @@ import TrainingRoom from './trainingroom';
 export default class GameServer {
     private readonly PORT: number = process.env.PORT as any || 3010;
     private readonly SSL_ENABLED: boolean = process.env.SSL_ENABLED as any || false;
-    private readonly CERT_DIR: string = process.env.CERT_DIR as any || '/etc/letsencrypt/live/radbee.me/';
+    private readonly CERT_DIR: string = process.env.CERT_DIR as any || '/etc/letsencrypt/live/radbee.io/';
     private readonly UPDATE_RATE: number = process.env.UPDATE_RATE as any || 60;
 
     private _io: SocketIO.Server;
@@ -28,6 +28,8 @@ export default class GameServer {
     }
 
     constructor() {
+        let log_secure: string = '';
+
         if (this.SSL_ENABLED) {
             const server: https.Server = https.createServer({
                 key: fs.readFileSync(this.CERT_DIR + 'privkey.pem'),
@@ -36,11 +38,13 @@ export default class GameServer {
 
             this._io = sio(server);
             server.listen(this.PORT);
+
+            log_secure = ' (secure)';
         } else {
             this._io = sio(this.PORT);
         }
 
-        Log.info('Server listening on ' + this.PORT + '.');
+        Log.info('Server listening on ' + this.PORT + '.' + log_secure);
 
         this.connections = new Array<GameSocket>();
         this.rooms = new Array<GameRoom>();
@@ -48,6 +52,7 @@ export default class GameServer {
         this.uid = new UID();
 
         this.io.on('connection', (socket: SocketIO.Socket) => {
+            Log.info('Request: ' + socket.request.url);
             const connection: GameSocket = new GameSocket(this.uid.next('socket'), socket);
             this.connections.push(connection);
             Log.info('Connection ' + connection.key + ' added.');
