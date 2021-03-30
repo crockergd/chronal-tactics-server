@@ -3,6 +3,7 @@ import ClientSettings from '../sync/clientsettings';
 import SocketState from '../states/socketstate';
 import { Vector } from 'turn-based-combat-framework';
 import TrainingRoom from './trainingroom';
+import { Socket } from 'socket.io';
 
 export default class GameSocket {
     public state: SocketState;
@@ -14,7 +15,7 @@ export default class GameSocket {
     public units: Array<[string, Vector]>;
     public tiles: Array<Vector>;
 
-    public get socket(): SocketIO.Socket {
+    public get socket(): Socket {
         return this._socket;
     }
 
@@ -25,7 +26,7 @@ export default class GameSocket {
         return true;
     }
 
-    constructor(readonly key: string, private readonly _socket: SocketIO.Socket) {
+    constructor(readonly key: string, private readonly _socket: Socket) {
         this.state = SocketState.CREATED;
         
         this.socket.on('disconnect', () => {

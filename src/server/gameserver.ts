@@ -1,6 +1,6 @@
 import https from 'https';
 import fs from 'fs';
-import sio from 'socket.io';
+import { Server, ServerOptions, Socket } from 'socket.io';
 
 import GameSocket from './gamesocket';
 import GameRoom from './gameroom';
@@ -14,8 +14,9 @@ export default class GameServer {
     private readonly SSL_ENABLED: boolean = process.env.SSL_ENABLED as any || false;
     private readonly CERT_DIR: string = process.env.CERT_DIR as any || '/etc/letsencrypt/live/radbee.io/';
     private readonly UPDATE_RATE: number = process.env.UPDATE_RATE as any || 60;
+    private readonly ORIGIN: string | Array<string> = process.env.ORIGIN as any || 'http://localhost:3002';
 
-    private _io: SocketIO.Server;
+    private _io: Server;
 
     private connections: Array<GameSocket>;
     private rooms: Array<GameRoom | TrainingRoom>;
@@ -23,25 +24,32 @@ export default class GameServer {
     private uid: UID;
     private last_update_now: number;
 
-    public get io(): SocketIO.Server {
+    public get io(): Server {
         return this._io;
     }
 
     constructor() {
         let log_secure: string = '';
 
+        const opts: Partial<ServerOptions> = {
+            cors: {
+                origin: this.ORIGIN,
+                methods: ["GET", "POST"]
+            }
+        };
+
         if (this.SSL_ENABLED) {
-            const server: https.Server = https.createServer({
+            const https_server: https.Server = https.createServer({
                 key: fs.readFileSync(this.CERT_DIR + 'privkey.pem'),
                 cert: fs.readFileSync(this.CERT_DIR + 'fullchain.pem')
             });
 
-            this._io = sio(server);
-            server.listen(this.PORT);
+            this._io = new Server(https_server, opts);
+            https_server.listen(this.PORT);
 
             log_secure = ' (secure)';
         } else {
-            this._io = sio(this.PORT);
+            this._io = new Server(this.PORT, opts);
         }
 
         Log.info('Server listening on ' + this.PORT + '.' + log_secure);
@@ -51,7 +59,7 @@ export default class GameServer {
 
         this.uid = new UID();
 
-        this.io.on('connection', (socket: SocketIO.Socket) => {
+        this.io.on('connection', (socket: Socket) => {
             Log.info('Request: ' + socket.request.url);
             const connection: GameSocket = new GameSocket(this.uid.next('socket'), socket);
             this.connections.push(connection);
@@ -110,10 +118,10 @@ export default class GameServer {
         if (unmatched_connections.length > 1) {
             const p1: GameSocket = unmatched_connections[0];
             const p2: GameSocket = unmatched_connections[1];
-    
+
             const room: GameRoom = new GameRoom(this.uid.next('room'), p1, p2);
             Log.info('Connections ' + p1.key + ' and ' + p2.key + ' matched into ' + room.key + '.');
-    
+
             this.rooms.push(room);
         }
 
