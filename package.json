@@ -12,7 +12,7 @@
         "build": "tsc"
     },
     "dependencies": {
-        "socket.io": "^4.0.0",
+        "socket.io": "^4.5.3",
         "turn-based-combat-framework": "^0.0.3"
     },
     "devDependencies": {
