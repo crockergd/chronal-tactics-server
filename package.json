@@ -4,7 +4,7 @@
     "author": "George Crocker <g.crocker3@gmail.com>",
     "repository": {
         "type": "git",
-        "url": "https://github.com/rekys/chronal-tactics-server.git"
+        "url": "https://github.com/crockergd/chronal-tactics-server.git"
     },
     "scripts": {
         "start": "tsc && node dist/index.js",
@@ -12,10 +12,10 @@
         "build": "tsc"
     },
     "dependencies": {
-        "socket.io": "^4.0.0",
+        "socket.io": "^4.7.2",
         "turn-based-combat-framework": "^0.0.3"
     },
     "devDependencies": {
-        "typescript": "^4.2.3"
+        "typescript": "^5.1.6"
     }
 }
