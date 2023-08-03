@@ -33,7 +33,7 @@ export default class GameServer {
 
         const opts: Partial<ServerOptions> = {
             cors: {
-                origin: this.ORIGIN,
+                origin: true,
                 methods: ["GET", "POST"]
             }
         };
